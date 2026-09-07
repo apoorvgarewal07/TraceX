@@ -1,0 +1,128 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cryptofraud-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crypto
+      POSTGRES_PASSWORD: cryptopass
+      POSTGRES_DB: cryptofraud
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crypto -d cryptofraud"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: cryptofraud-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7687:7687"
+      - "7474:7474"
+    volumes:
+      - neo4j_data:/data
+      - ./neo4j-init.cypher:/var/lib/neo4j/import/init.cypher
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password 'MATCH (n) RETURN count(n)' || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cryptofraud-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: cryptofraud-backend
+    restart: unless-stopped
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql://crypto:cryptopass@postgres:5432/cryptofraud
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+      REDIS_URL: redis://redis:6379
+      ALCHEMY_KEY: ${ALCHEMY_KEY:-demo_key}
+      QUICKNODE_KEY: ${QUICKNODE_KEY:-demo_key}
+      SERPAPI_KEY: ${SERPAPI_KEY:-demo_key}
+      ENV: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app/backend
+      - ../scripts:/app/scripts
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: cryptofraud-celery
+    restart: unless-stopped
+    command: celery -A backend.tasks.celery_app.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://crypto:cryptopass@postgres:5432/cryptofraud
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+      REDIS_URL: redis://redis:6379
+      ALCHEMY_KEY: ${ALCHEMY_KEY:-demo_key}
+      QUICKNODE_KEY: ${QUICKNODE_KEY:-demo_key}
+    depends_on:
+      - backend
+      - redis
+      - postgres
+    volumes:
+      - ../backend:/app/backend
+      - ../scripts:/app/scripts
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: cryptofraud-frontend
+    restart: unless-stopped
+    command: npm run dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  neo4j_data:
