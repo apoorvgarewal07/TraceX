@@ -39,36 +39,7 @@ app.add_middleware(
 # Include API Router
 app.include_router(api_router)
 
-# WebSocket Connection Manager for Real-time Trace Updates
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
-        self.global_connections: Set[WebSocket] = set()
-
-    async def connect(self, websocket: WebSocket, trace_id: str = "global"):
-        await websocket.accept()
-        if trace_id == "global":
-            self.global_connections.add(websocket)
-        else:
-            if trace_id not in self.active_connections:
-                self.active_connections[trace_id] = set()
-            self.active_connections[trace_id].add(websocket)
-
-    def disconnect(self, websocket: WebSocket, trace_id: str = "global"):
-        if trace_id == "global":
-            self.global_connections.discard(websocket)
-        elif trace_id in self.active_connections:
-            self.active_connections[trace_id].discard(websocket)
-
-    async def broadcast_to_trace(self, trace_id: str, message: dict):
-        targets = list(self.active_connections.get(trace_id, set())) + list(self.global_connections)
-        for connection in targets:
-            try:
-                await connection.send_json(message)
-            except Exception:
-                pass
-
-manager = ConnectionManager()
+from backend.api.ws_manager import manager
 
 @app.on_event("startup")
 async def on_startup():

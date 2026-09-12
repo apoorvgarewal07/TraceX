@@ -30,6 +30,8 @@ tracer = BlockchainTracer(rpc, neo4j)
 clusterer = WalletClusterer()
 notice_gen = NoticeGenerator()
 
+from backend.api.ws_manager import manager
+
 # In-memory progress tracking for real-time WebSocket / polling
 TRACE_PROGRESS: Dict[str, Dict[str, Any]] = {}
 
@@ -48,6 +50,15 @@ async def run_trace_task(
 ):
     """Background execution runner for traces."""
     TRACE_PROGRESS[trace_id] = {"status": "processing", "progress": 10, "hops": []}
+
+    async def ws_callback(data: Dict[str, Any]):
+        logger.info(f"[WS CALLBACK] Trace {trace_id}: {data.get('event')}")
+        if data.get("event") == "HOP_DISCOVERED":
+            if trace_id in TRACE_PROGRESS:
+                TRACE_PROGRESS[trace_id]["hops"].append(data.get("hop"))
+                TRACE_PROGRESS[trace_id]["progress"] = data.get("progress", 50)
+        await manager.broadcast_to_trace(trace_id, data)
+
     try:
         res = await tracer.trace(
             source_wallet=victim_wallet,
@@ -59,7 +70,8 @@ async def run_trace_task(
             start_time=start_time,
             end_time=end_time,
             from_block=from_block,
-            to_block=to_block
+            to_block=to_block,
+            websocket_callback=ws_callback
         )
         
         # Save to database
@@ -102,9 +114,23 @@ async def run_trace_task(
             "hops": res.get('hops', []),
             "result": res
         }
+        await manager.broadcast_to_trace(trace_id, {
+            "event": "TRACE_COMPLETED",
+            "trace_id": trace_id,
+            "progress": 100,
+            "hops_count": res.get('hops_count', len(res.get('hops', []))),
+            "risk_score": res.get('risk_score', 0.0),
+            "target_vasp": res.get('target_vasp'),
+            "result": res
+        })
     except Exception as e:
         logger.error(f"Error in background trace {trace_id}: {e}")
         TRACE_PROGRESS[trace_id] = {"status": "failed", "error": str(e), "progress": 0}
+        await manager.broadcast_to_trace(trace_id, {
+            "event": "TRACE_FAILED",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
 
 
 @router.post("/trace", response_model=TraceResponse)

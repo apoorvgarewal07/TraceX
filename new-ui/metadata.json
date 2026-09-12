@@ -1,0 +1,6 @@
+{
+  "name": "TraceX — Blockchain Forensics Dossier",
+  "description": "Cryptocurrency fund-flow tracking and exchange identification platform for Indian law enforcement (I4C).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

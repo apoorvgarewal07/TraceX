@@ -28,6 +28,7 @@ class Neo4jClient:
                 auth=(self.user, self.password),
                 max_connection_lifetime=30 * 60,
                 max_connection_pool_size=50,
+                connection_timeout=2.0,
                 connection_acquisition_timeout=2.0
             )
             self._create_indexes()
