@@ -1,11 +1,11 @@
-# CryptoFraud Trace v1.0
+# TraceX
 ## Autonomous Blockchain Forensics & Fraud Attribution Platform for Law Enforcement
-### Developed for: Smart India Hackathon (SIH 2024) | Ministry of Home Affairs (MHA) & I4C
+### Developed for: Hack The Future 3.0 – National Hackathon 2026, organized by Tula's University | Theme: "Project to Product"
 
 ---
 
 ## 📌 Executive Summary
-**CryptoFraud Trace** is an end-to-end cyber-forensics platform designed for the **Indian Cyber Crime Coordination Centre (I4C)** and state cyber cells. The platform automates the multi-hop tracing of stolen virtual digital assets across Ethereum, Polygon, and EVM-compatible chains, identifies destination centralized exchange (VASP) deposit hubs, predicts criminal anomaly scores via Machine Learning (Isolation Forest), visualizes fund flow graphs interactively with Cytoscape.js, and generates court-admissible legal freeze directives under **Section 91 CrPC** and the **Information Technology Act, 2000** in under 30 seconds.
+**TraceX** (also referred to as **Sentinel X**) is an end-to-end cyber-forensics platform designed for the **Indian Cyber Crime Coordination Centre (I4C)** and state cyber cells. The platform automates the multi-hop tracing of stolen virtual digital assets across Ethereum, Polygon, and EVM-compatible chains, identifies destination centralized exchange (VASP) deposit hubs, predicts criminal anomaly scores via Machine Learning (Isolation Forest), visualizes fund flow graphs interactively with Cytoscape.js, and generates court-admissible legal freeze directives under **Section 91 CrPC** and the **Information Technology Act, 2000** in under 30 seconds.
 
 ---
 
@@ -78,8 +78,8 @@
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/cryptofraud-trace.git
-cd cryptofraud-trace
+git clone https://github.com/your-org/tracex.git
+cd tracex
 
 # 2. Setup environment variables
 cp .env.example .env
@@ -188,4 +188,4 @@ Generate court-admissible PDF freeze directive.
 ---
 
 ## ⚖️ License
-Proprietary - Prepared for Smart India Hackathon 2024 & Ministry of Home Affairs (MHA), Government of India.
+Proprietary - Prepared for Hack The Future 3.0 – National Hackathon 2026, organized by Tula's University.
