@@ -1,6 +1,6 @@
 # TraceX
 ## Autonomous Blockchain Forensics & Fraud Attribution Platform for Law Enforcement
-### Developed for: Hack The Future 3.0 – National Hackathon 2026, organized by Tula's University | Theme: "Project to Product"
+
 
 ---
 
@@ -187,5 +187,3 @@ Generate court-admissible PDF freeze directive.
 
 ---
 
-## ⚖️ License
-Proprietary - Prepared for Hack The Future 3.0 – National Hackathon 2026, organized by Tula's University.
