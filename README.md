@@ -255,15 +255,6 @@ python scripts/benchmark.py
 
 ---
 
-## 👥 Participant & Team Details
-
-| Role | Full Name | Email | Phone | Occupation | Years of Experience |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Lead Participant** | Apoorv Garewal | `[Your Email]` | `[Your Phone]` | `[Your Occupation]` | `[Years of Exp]` |
-| **Teammate 1** | `[Teammate Name]` | `[Teammate Email]` | - | - | - |
-| **Teammate 2** | `[Teammate Name]` | `[Teammate Email]` | - | - | - |
-
----
 
 ## 📋 Disclosures & Declarations
 
