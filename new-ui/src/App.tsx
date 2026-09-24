@@ -1,19 +1,18 @@
-import { useState, useEffect } from 'react';
-import { FORENSIC_CASES } from './data/cases';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { ForensicCase } from './types';
-import { Header } from './components/Header';
-import { LeftPanel } from './components/LeftPanel';
-import { HeroGraph } from './components/HeroGraph';
-import { RightPanel } from './components/RightPanel';
-import { Section91NoticeModal } from './components/Section91NoticeModal';
-import { EvidenceExportModal } from './components/EvidenceExportModal';
-import { HomeScreen } from './components/HomeScreen';
 import { api, BackendTraceDetail } from './api/client';
 import { buildForensicCaseFromBackend } from './utils/graphAdapter';
 import { useWebSocket } from './hooks/useWebSocket';
 
-export default function App() {
-  const [activeView, setActiveView] = useState<'landing' | 'dashboard'>('landing');
+import { LoginPage } from './pages/LoginPage';
+import { CaseListPage } from './pages/CaseListPage';
+import { CaseCreatePage } from './pages/CaseCreatePage';
+import { CaseDetailPage } from './pages/CaseDetailPage';
+import { ForbiddenPage } from './pages/ForbiddenPage';
+
+function AppRoutes() {
+  const navigate = useNavigate();
   const [hasActiveSession, setHasActiveSession] = useState<boolean>(false);
   const [currentCase, setCurrentCase] = useState<ForensicCase | null>(null);
   const [activeHop, setActiveHop] = useState<number>(0);
@@ -174,38 +173,6 @@ export default function App() {
     }
   };
 
-  // URL Hash routing synchronization
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash.includes('dashboard')) {
-        setActiveView('dashboard');
-      } else {
-        setActiveView('landing');
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-
-    // Intentional choice: page reload always begins at 'landing' for a fresh session
-    if (window.location.hash) {
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const navigateToDashboard = () => {
-    setHasActiveSession(true);
-    setActiveView('dashboard');
-    window.location.hash = 'dashboard';
-  };
-
-  const navigateToLanding = () => {
-    setActiveView('landing');
-    window.location.hash = '';
-  };
-
   const handleSelectCase = (selectedCase: ForensicCase) => {
     setActiveTraceId(null);
     setLastBackendDetail(null);
@@ -221,7 +188,7 @@ export default function App() {
     setHasActiveSession(true);
     setActiveHop(0);
     setIsTracing(false);
-    navigateToDashboard();
+    navigate(`/cases/${taggedCase.id}`);
   };
 
   const handleResetTrace = () => {
@@ -235,7 +202,6 @@ export default function App() {
     chain: string = 'Ethereum (ETH)',
     complaintId?: string
   ) => {
-    navigateToDashboard();
     const docket = complaintId ? `[SIMULATION] ${complaintId}` : `[SIMULATION] NCRP/2024/${Math.floor(10000 + Math.random() * 90000)}`;
     const shortAddr = address.slice(0, 8);
     const customCase: ForensicCase = {
@@ -462,9 +428,11 @@ export default function App() {
     };
 
     setCurrentCase(customCase);
+    setHasActiveSession(true);
     setActiveHop(0);
     setIsTracing(false);
     setIsExecuting(false);
+    navigate(`/cases/${customCase.id}`);
   };
 
   // Primary execution handler: triggers live backend trace, then falls back seamlessly if offline
@@ -535,7 +503,7 @@ export default function App() {
     };
     setCurrentCase(initialLiveCase);
     setHasActiveSession(true);
-    navigateToDashboard();
+    navigate(`/cases/${initialLiveCase.id}`);
     setIsExecuting(true);
     setActiveHop(0);
     setIsTracing(false);
@@ -587,94 +555,68 @@ export default function App() {
     }
   };
 
-  if (activeView === 'landing' || !currentCase) {
-    return (
-      <>
-        <HomeScreen
-          onExecuteTrace={handleExecuteTrace}
-          onSelectCase={handleSelectCase}
-          hasActiveSession={hasActiveSession && !!currentCase}
-          activeCase={currentCase || undefined}
-          onReturnToDashboard={currentCase ? navigateToDashboard : undefined}
-        />
-        {/* Global Modals available if opened and currentCase exists */}
-        {currentCase && (
-          <>
-            <Section91NoticeModal
-              isOpen={isNoticeModalOpen}
-              onClose={() => setIsNoticeModalOpen(false)}
-              currentCase={currentCase}
-            />
-            <EvidenceExportModal
-              isOpen={isExportModalOpen}
-              onClose={() => setIsExportModalOpen(false)}
-              currentCase={currentCase}
-            />
-          </>
-        )}
-      </>
-    );
-  }
-
   return (
-    <div className="flex h-screen flex-col bg-[#131114] text-[#EDE8DE] overflow-hidden select-none">
-      {/* Top Dossier Briefing Banner */}
-      <Header
-        currentCase={currentCase}
-        onOpenNotice={() => setIsNoticeModalOpen(true)}
-        onOpenExport={() => setIsExportModalOpen(true)}
-        onNavigateHome={navigateToLanding}
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <CaseListPage
+            onExecuteTrace={handleExecuteTrace}
+            onSelectCase={handleSelectCase}
+            hasActiveSession={hasActiveSession && !!currentCase}
+            activeCase={currentCase || undefined}
+            onReturnToDashboard={currentCase ? () => navigate(`/cases/${currentCase.id}`) : undefined}
+          />
+        }
       />
-
-      {/* Main 3-Column Investigative Layout */}
-      <main className="flex flex-1 flex-col lg:flex-row overflow-hidden">
-        {/* Left: Target Input + Case Metadata Panel */}
-        <LeftPanel
-          currentCase={currentCase}
-          isExecuting={isExecuting}
-          onSelectCase={handleSelectCase}
-          onExecuteTrace={handleExecuteTrace}
-          onResetTrace={handleResetTrace}
-        />
-
-        {/* Center: Hero Fund-Flow Graph (With Signature Trace Pulse Animation & Usability Enhancements) */}
-        <HeroGraph
-          currentCase={currentCase}
-          onOpenNotice={() => setIsNoticeModalOpen(true)}
-          activeHop={activeHop}
-          setActiveHop={setActiveHop}
-          isTracing={isTracing}
-          setIsTracing={setIsTracing}
-          traceStatus={traceStatus}
-          traceProgress={traceProgress}
-          latestHop={latestHop}
-          isExecuting={isExecuting}
-          onPinNode={handlePinNode}
-          onSelectDefaultCase={() => handleSelectCase(FORENSIC_CASES[0])}
-        />
-
-        {/* Right: Risk Score, Identified Exchange, and Section 91 Directives */}
-        <RightPanel
-          currentCase={currentCase}
-          activeHop={activeHop}
-          onOpenNotice={() => setIsNoticeModalOpen(true)}
-          onOpenExport={() => setIsExportModalOpen(true)}
-        />
-      </main>
-
-      {/* Legal Section 91 Freeze Notice Modal */}
-      <Section91NoticeModal
-        isOpen={isNoticeModalOpen}
-        onClose={() => setIsNoticeModalOpen(false)}
-        currentCase={currentCase}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/cases/new" element={<CaseCreatePage />} />
+      <Route
+        path="/cases/:caseId"
+        element={
+          <CaseDetailPage
+            currentCase={currentCase}
+            activeHop={activeHop}
+            setActiveHop={setActiveHop}
+            isTracing={isTracing}
+            setIsTracing={setIsTracing}
+            traceStatus={traceStatus}
+            traceProgress={traceProgress}
+            latestHop={latestHop}
+            isExecuting={isExecuting}
+            onPinNode={handlePinNode}
+            onSelectCase={handleSelectCase}
+            onExecuteTrace={handleExecuteTrace}
+            onResetTrace={handleResetTrace}
+            isNoticeModalOpen={isNoticeModalOpen}
+            setIsNoticeModalOpen={setIsNoticeModalOpen}
+            isExportModalOpen={isExportModalOpen}
+            setIsExportModalOpen={setIsExportModalOpen}
+            onNavigateHome={() => navigate('/')}
+          />
+        }
       />
-
-      {/* Forensic Evidence Brief Export Modal */}
-      <EvidenceExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        currentCase={currentCase}
+      <Route path="/unauthorized" element={<ForbiddenPage />} />
+      <Route
+        path="*"
+        element={
+          <CaseListPage
+            onExecuteTrace={handleExecuteTrace}
+            onSelectCase={handleSelectCase}
+            hasActiveSession={hasActiveSession && !!currentCase}
+            activeCase={currentCase || undefined}
+            onReturnToDashboard={currentCase ? () => navigate(`/cases/${currentCase.id}`) : undefined}
+          />
+        }
       />
-    </div>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
