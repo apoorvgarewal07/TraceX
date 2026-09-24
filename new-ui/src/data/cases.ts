@@ -1,5 +1,11 @@
 import { ForensicCase } from '../types';
 
+// ============================================================================
+// SIMULATION / BENCHMARK MOCK DATASET ONLY
+// WARNING: This dataset contains simulated synthetic cases for demonstration,
+// testing, and local development. It must NEVER be loaded as implicit default
+// data or treated as live on-chain forensic evidence.
+// ============================================================================
 export const FORENSIC_CASES: ForensicCase[] = [
   {
     id: 'case-euler-exploit',

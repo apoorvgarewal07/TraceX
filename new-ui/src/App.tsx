@@ -15,7 +15,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 export default function App() {
   const [activeView, setActiveView] = useState<'landing' | 'dashboard'>('landing');
   const [hasActiveSession, setHasActiveSession] = useState<boolean>(false);
-  const [currentCase, setCurrentCase] = useState<ForensicCase>(FORENSIC_CASES[0]);
+  const [currentCase, setCurrentCase] = useState<ForensicCase | null>(null);
   const [activeHop, setActiveHop] = useState<number>(0);
   const [isTracing, setIsTracing] = useState<boolean>(false);
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState<boolean>(false);
@@ -37,8 +37,8 @@ export default function App() {
               setLastBackendDetail(detail);
               const partialCase = buildForensicCaseFromBackend(
                 detail,
-                currentCase.chain,
-                currentCase.ncrpDocketNumber,
+                currentCase?.chain || 'ETH',
+                currentCase?.ncrpDocketNumber,
                 pinnedAddresses
               );
               setCurrentCase(partialCase);
@@ -54,8 +54,8 @@ export default function App() {
           setLastBackendDetail(detail);
           const adaptedCase = buildForensicCaseFromBackend(
             detail,
-            currentCase.chain,
-            currentCase.ncrpDocketNumber,
+            currentCase?.chain || 'ETH',
+            currentCase?.ncrpDocketNumber,
             pinnedAddresses
           );
           setCurrentCase(adaptedCase);
@@ -85,14 +85,15 @@ export default function App() {
     if (lastBackendDetail) {
       const adapted = buildForensicCaseFromBackend(
         lastBackendDetail,
-        currentCase.chain,
-        currentCase.ncrpDocketNumber,
+        currentCase?.chain || 'ETH',
+        currentCase?.ncrpDocketNumber,
         nextPinned
       );
       setCurrentCase(adapted);
     } else {
       // Support promotion in mock/preset cases
       setCurrentCase((prevCase) => {
+        if (!prevCase) return null;
         let promotedWallet: any = null;
         let targetClusterHop = 2;
 
@@ -209,7 +210,15 @@ export default function App() {
     setActiveTraceId(null);
     setLastBackendDetail(null);
     setPinnedAddresses(new Set<string>());
-    setCurrentCase(selectedCase);
+    // Explicitly tag demo/preset dataset so it's visibly marked as simulation
+    const taggedCase: ForensicCase = {
+      ...selectedCase,
+      ncrpDocketNumber: selectedCase.ncrpDocketNumber.startsWith('[SIMULATION]')
+        ? selectedCase.ncrpDocketNumber
+        : `[SIMULATION] ${selectedCase.ncrpDocketNumber}`,
+    };
+    setCurrentCase(taggedCase);
+    setHasActiveSession(true);
     setActiveHop(0);
     setIsTracing(false);
     navigateToDashboard();
@@ -227,12 +236,12 @@ export default function App() {
     complaintId?: string
   ) => {
     navigateToDashboard();
-    const docket = complaintId || `NCRP/2024/${Math.floor(10000 + Math.random() * 90000)}`;
+    const docket = complaintId ? `[SIMULATION] ${complaintId}` : `[SIMULATION] NCRP/2024/${Math.floor(10000 + Math.random() * 90000)}`;
     const shortAddr = address.slice(0, 8);
     const customCase: ForensicCase = {
-      id: `custom-${Date.now()}`,
+      id: `custom-sim-${Date.now()}`,
       ncrpDocketNumber: docket,
-      firNumber: `FIR ${Math.floor(100 + Math.random() * 900)}/2024`,
+      firNumber: `[SIMULATION] FIR ${Math.floor(100 + Math.random() * 900)}/2024`,
       policeStation: 'Special Cyber Crime Cell, New Delhi',
       investigatingOfficer: 'Inspector Vikramaditya Sen',
       rank: 'Inspector of Police (Forensic Cyber)',
@@ -460,6 +469,72 @@ export default function App() {
 
   // Primary execution handler: triggers live backend trace, then falls back seamlessly if offline
   const handleExecuteTrace = async (address: string, chain: string, complaintId?: string) => {
+    // Initial container for the live investigation (never Euler exploit)
+    const initialLiveCase: ForensicCase = {
+      id: `trace-live-${Date.now()}`,
+      ncrpDocketNumber: complaintId || `CASE-${Date.now().toString().slice(-6)}`,
+      firNumber: 'LIVE TRACE IN PROGRESS',
+      policeStation: 'Cyber Crime Investigation Division',
+      investigatingOfficer: 'Authorized Investigator',
+      rank: 'Investigating Officer',
+      badgeNumber: 'I4C-ACTIVE',
+      reportingDate: new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) + ' IST',
+      crimeCategory: 'Active On-Chain Asset Trail',
+      complainantName: 'Real-time On-Chain Target',
+      stolenAmountCrypto: 'Pending Discovery',
+      stolenAmountINR: 'Calculating...',
+      chain,
+      token: chain.includes('Polygon') ? 'MATIC' : 'ETH',
+      targetWallet: address,
+      riskScore: 0,
+      riskSummary: 'Investigative trace initiated. Traversing live on-chain hops...',
+      exchange: {
+        name: 'Pending Discovery',
+        fiuRegistrationNumber: 'N/A',
+        depositUid: 'Pending',
+        depositTag: 'Pending',
+        kycStatus: 'Pending',
+        accountHolderMasked: 'Pending',
+        accountAgeDays: 0,
+        nodalEmail: 'compliance@vasp.int',
+        nodalDeskPhone: 'N/A',
+        physicalJurisdiction: 'N/A',
+        estimatedRecoverableBalance: 'N/A',
+        freezeStatus: 'Awaiting Hop Analysis',
+      },
+      riskFactors: [],
+      investigatorNotes: [`Live trace initiated for suspect address: ${address}`],
+      nodes: [
+        {
+          id: 'origin',
+          label: 'Suspect Target Wallet',
+          address,
+          entityType: 'victim',
+          risk: 'high',
+          balance: 'Querying...',
+          volumeOut: '0.00',
+          volumeIn: '0.00',
+          fiatEquivalentINR: '₹0',
+          x: 150,
+          y: 300,
+          hopIndex: 0,
+          txCount: 0,
+          status: 'active',
+          tags: ['Origin', 'Investigation Target'],
+          firstSeen: 'On-chain',
+          lastSeen: 'Present',
+        },
+      ],
+      edges: [],
+    };
+    setCurrentCase(initialLiveCase);
+    setHasActiveSession(true);
     navigateToDashboard();
     setIsExecuting(true);
     setActiveHop(0);
@@ -512,27 +587,31 @@ export default function App() {
     }
   };
 
-  if (activeView === 'landing') {
+  if (activeView === 'landing' || !currentCase) {
     return (
       <>
         <HomeScreen
           onExecuteTrace={handleExecuteTrace}
           onSelectCase={handleSelectCase}
-          hasActiveSession={hasActiveSession}
-          activeCase={currentCase}
-          onReturnToDashboard={navigateToDashboard}
+          hasActiveSession={hasActiveSession && !!currentCase}
+          activeCase={currentCase || undefined}
+          onReturnToDashboard={currentCase ? navigateToDashboard : undefined}
         />
-        {/* Global Modals available if opened */}
-        <Section91NoticeModal
-          isOpen={isNoticeModalOpen}
-          onClose={() => setIsNoticeModalOpen(false)}
-          currentCase={currentCase}
-        />
-        <EvidenceExportModal
-          isOpen={isExportModalOpen}
-          onClose={() => setIsExportModalOpen(false)}
-          currentCase={currentCase}
-        />
+        {/* Global Modals available if opened and currentCase exists */}
+        {currentCase && (
+          <>
+            <Section91NoticeModal
+              isOpen={isNoticeModalOpen}
+              onClose={() => setIsNoticeModalOpen(false)}
+              currentCase={currentCase}
+            />
+            <EvidenceExportModal
+              isOpen={isExportModalOpen}
+              onClose={() => setIsExportModalOpen(false)}
+              currentCase={currentCase}
+            />
+          </>
+        )}
       </>
     );
   }
