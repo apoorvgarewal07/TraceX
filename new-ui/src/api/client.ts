@@ -1,4 +1,10 @@
 import axios from 'axios';
+import { authStub, User, UserRole, LoginPayload } from './authStub';
+
+export type { User, UserRole, LoginPayload };
+
+// TOGGLE: Flip to false when Person 1's backend POST /api/v1/auth/login is confirmed live
+export const USE_AUTH_STUB = true;
 
 const env = (import.meta as any).env || {};
 export const API_BASE_URL = env.VITE_API_URL || 'http://localhost:8000';
@@ -6,6 +12,7 @@ export const WS_BASE_URL = env.VITE_WS_URL || API_BASE_URL.replace(/^http/, 'ws'
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -119,5 +126,28 @@ export const api = {
 
   getTraceWsUrl(traceId: string): string {
     return `${WS_BASE_URL}/ws/trace/${traceId}`;
+  },
+
+  async login(payload: LoginPayload): Promise<User> {
+    if (USE_AUTH_STUB) {
+      return authStub.login(payload);
+    }
+    const res = await apiClient.post<User>('/api/v1/auth/login', payload);
+    return res.data;
+  },
+
+  async logout(): Promise<void> {
+    if (USE_AUTH_STUB) {
+      return authStub.logout();
+    }
+    await apiClient.post('/api/v1/auth/logout');
+  },
+
+  async me(): Promise<User> {
+    if (USE_AUTH_STUB) {
+      return authStub.me();
+    }
+    const res = await apiClient.get<User>('/api/v1/auth/me');
+    return res.data;
   },
 };

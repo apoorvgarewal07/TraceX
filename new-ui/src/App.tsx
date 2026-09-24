@@ -10,6 +10,7 @@ import { CaseListPage } from './pages/CaseListPage';
 import { CaseCreatePage } from './pages/CaseCreatePage';
 import { CaseDetailPage } from './pages/CaseDetailPage';
 import { ForbiddenPage } from './pages/ForbiddenPage';
+import { AuthProvider } from './hooks/useAuth';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -616,7 +617,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
