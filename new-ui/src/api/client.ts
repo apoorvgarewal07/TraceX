@@ -18,6 +18,77 @@ export const apiClient = axios.create({
   },
 });
 
+export type SecurityEventType = 'UNAUTHORIZED' | 'FORBIDDEN' | 'UNAVAILABLE';
+
+export interface SecurityEventDetail {
+  type: SecurityEventType;
+  status?: number;
+  message?: string;
+}
+
+type SecurityEventListener = (event: SecurityEventDetail) => void;
+
+class SecurityEvents {
+  private listeners: Set<SecurityEventListener> = new Set();
+
+  subscribe(listener: SecurityEventListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  emit(event: SecurityEventDetail): void {
+    this.listeners.forEach((listener) => {
+      try {
+        listener(event);
+      } catch (e) {
+        console.error('[SecurityEvents] Listener callback error:', e);
+      }
+    });
+  }
+}
+
+export const securityEvents = new SecurityEvents();
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (!error.response) {
+      securityEvents.emit({
+        type: 'UNAVAILABLE',
+        message: 'Network disruption or backend forensic service unreachable.',
+      });
+      return Promise.reject(error);
+    }
+
+    const { status, data } = error.response;
+    const message = data?.detail || data?.message || error.message;
+
+    if (status === 401) {
+      securityEvents.emit({
+        type: 'UNAUTHORIZED',
+        status: 401,
+        message,
+      });
+    } else if (status === 403) {
+      securityEvents.emit({
+        type: 'FORBIDDEN',
+        status: 403,
+        message,
+      });
+    } else if (status >= 500) {
+      securityEvents.emit({
+        type: 'UNAVAILABLE',
+        status,
+        message,
+      });
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export interface StartTracePayload {
   victim_wallet: string;
   complaint_id?: string;

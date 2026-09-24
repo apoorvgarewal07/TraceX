@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { ForensicCase } from './types';
-import { api, BackendTraceDetail } from './api/client';
+import { api, BackendTraceDetail, securityEvents, SecurityEventDetail } from './api/client';
 import { buildForensicCaseFromBackend } from './utils/graphAdapter';
 import { useWebSocket } from './hooks/useWebSocket';
 
@@ -11,9 +11,12 @@ import { CaseCreatePage } from './pages/CaseCreatePage';
 import { CaseDetailPage } from './pages/CaseDetailPage';
 import { ForbiddenPage } from './pages/ForbiddenPage';
 import { AuthProvider } from './hooks/useAuth';
+import { RequireAuth } from './components/RequireAuth';
+import { UnavailableBanner } from './components/UnavailableBanner';
 
 function AppRoutes() {
   const navigate = useNavigate();
+  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [hasActiveSession, setHasActiveSession] = useState<boolean>(false);
   const [currentCase, setCurrentCase] = useState<ForensicCase | null>(null);
   const [activeHop, setActiveHop] = useState<number>(0);
@@ -556,61 +559,88 @@ function AppRoutes() {
     }
   };
 
+  useEffect(() => {
+    const unsubscribe = securityEvents.subscribe((event: SecurityEventDetail) => {
+      if (event.type === 'UNAVAILABLE') {
+        setUnavailableMessage(event.message || 'Forensic backend service currently unreachable.');
+      } else if (event.type === 'FORBIDDEN') {
+        navigate('/unauthorized');
+      } else if (event.type === 'UNAUTHORIZED') {
+        navigate('/login');
+      }
+    });
+
+    return unsubscribe;
+  }, [navigate]);
+
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <CaseListPage
-            onExecuteTrace={handleExecuteTrace}
-            onSelectCase={handleSelectCase}
-            hasActiveSession={hasActiveSession && !!currentCase}
-            activeCase={currentCase || undefined}
-            onReturnToDashboard={currentCase ? () => navigate(`/cases/${currentCase.id}`) : undefined}
-          />
-        }
-      />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/cases/new" element={<CaseCreatePage />} />
-      <Route
-        path="/cases/:caseId"
-        element={
-          <CaseDetailPage
-            currentCase={currentCase}
-            activeHop={activeHop}
-            setActiveHop={setActiveHop}
-            isTracing={isTracing}
-            setIsTracing={setIsTracing}
-            traceStatus={traceStatus}
-            traceProgress={traceProgress}
-            latestHop={latestHop}
-            isExecuting={isExecuting}
-            onPinNode={handlePinNode}
-            onSelectCase={handleSelectCase}
-            onExecuteTrace={handleExecuteTrace}
-            onResetTrace={handleResetTrace}
-            isNoticeModalOpen={isNoticeModalOpen}
-            setIsNoticeModalOpen={setIsNoticeModalOpen}
-            isExportModalOpen={isExportModalOpen}
-            setIsExportModalOpen={setIsExportModalOpen}
-            onNavigateHome={() => navigate('/')}
-          />
-        }
-      />
-      <Route path="/unauthorized" element={<ForbiddenPage />} />
-      <Route
-        path="*"
-        element={
-          <CaseListPage
-            onExecuteTrace={handleExecuteTrace}
-            onSelectCase={handleSelectCase}
-            hasActiveSession={hasActiveSession && !!currentCase}
-            activeCase={currentCase || undefined}
-            onReturnToDashboard={currentCase ? () => navigate(`/cases/${currentCase.id}`) : undefined}
-          />
-        }
-      />
-    </Routes>
+    <div className="flex flex-col min-h-screen">
+      {unavailableMessage && (
+        <UnavailableBanner
+          message={unavailableMessage}
+          onDismiss={() => setUnavailableMessage(null)}
+          onRetry={() => {
+            setUnavailableMessage(null);
+            window.location.reload();
+          }}
+        />
+      )}
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/unauthorized" element={<ForbiddenPage />} />
+
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <CaseListPage
+                onExecuteTrace={handleExecuteTrace}
+                onSelectCase={handleSelectCase}
+                hasActiveSession={hasActiveSession && !!currentCase}
+                activeCase={currentCase || undefined}
+                onReturnToDashboard={currentCase ? () => navigate(`/cases/${currentCase.id}`) : undefined}
+              />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/cases/new"
+          element={
+            <RequireAuth>
+              <CaseCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/cases/:caseId"
+          element={
+            <RequireAuth>
+              <CaseDetailPage
+                currentCase={currentCase}
+                activeHop={activeHop}
+                setActiveHop={setActiveHop}
+                isTracing={isTracing}
+                setIsTracing={setIsTracing}
+                traceStatus={traceStatus}
+                traceProgress={traceProgress}
+                latestHop={latestHop}
+                isExecuting={isExecuting}
+                onPinNode={handlePinNode}
+                onSelectCase={handleSelectCase}
+                onExecuteTrace={handleExecuteTrace}
+                onResetTrace={handleResetTrace}
+                isNoticeModalOpen={isNoticeModalOpen}
+                setIsNoticeModalOpen={setIsNoticeModalOpen}
+                isExportModalOpen={isExportModalOpen}
+                setIsExportModalOpen={setIsExportModalOpen}
+                onNavigateHome={() => navigate('/')}
+              />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   );
 }
 
