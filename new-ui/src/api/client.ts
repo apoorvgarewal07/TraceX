@@ -9,15 +9,26 @@ import {
   CaseStatus,
   DataMode,
 } from './casesStub';
+import {
+  intelligenceVizStub,
+  VaspTier,
+  ExitDetail,
+  GasParentCluster,
+  CrossComplaintMatch,
+} from './intelligenceVizStub';
 
 export type { User, UserRole, LoginPayload };
 export type { CaseItem, CreateCasePayload, StartCaseTracePayload, ComplaintSource, CaseStatus, DataMode };
+export type { VaspTier, ExitDetail, GasParentCluster, CrossComplaintMatch };
 
 // TOGGLE: Flip to false when Person 1's backend POST /api/v1/auth/login is confirmed live
 export const USE_AUTH_STUB = true;
 
 // TOGGLE: Flip to false when Person 1's backend /api/v1/cases/* is confirmed live
 export const USE_CASES_STUB = true;
+
+// TOGGLE: Flip to false when Person 1's backend /gas-parent-clusters, /cross-complaint-matches, and /exits are confirmed live
+export const USE_INTELLIGENCE_VIZ_STUB = true;
 
 const env = (import.meta as any).env || {};
 export const API_BASE_URL = env.VITE_API_URL || 'http://localhost:8000';
@@ -272,6 +283,18 @@ export const api = {
   async copilotHealth(caseId?: string): Promise<CopilotHealthResponse> {
     return copilotHealth(caseId);
   },
+
+  async getExits(caseId: string): Promise<ExitDetail[]> {
+    return getExits(caseId);
+  },
+
+  async getGasParentClusters(caseId: string): Promise<GasParentCluster[]> {
+    return getGasParentClusters(caseId);
+  },
+
+  async getCrossComplaintMatches(caseId: string): Promise<CrossComplaintMatch[]> {
+    return getCrossComplaintMatches(caseId);
+  },
 };
 
 export type FindingSeverity = 'high' | 'medium' | 'low';
@@ -394,4 +417,30 @@ export async function copilotHealth(caseId?: string): Promise<CopilotHealthRespo
     };
   }
 }
+
+// Intelligence Visualization Contract exports
+export async function getExits(caseId: string): Promise<ExitDetail[]> {
+  if (USE_INTELLIGENCE_VIZ_STUB) {
+    return intelligenceVizStub.getExits(caseId);
+  }
+  const res = await apiClient.get<ExitDetail[]>(`/api/v1/cases/${caseId}/exits`);
+  return res.data;
+}
+
+export async function getGasParentClusters(caseId: string): Promise<GasParentCluster[]> {
+  if (USE_INTELLIGENCE_VIZ_STUB) {
+    return intelligenceVizStub.getGasParentClusters(caseId);
+  }
+  const res = await apiClient.get<GasParentCluster[]>(`/api/v1/cases/${caseId}/gas-parent-clusters`);
+  return res.data;
+}
+
+export async function getCrossComplaintMatches(caseId: string): Promise<CrossComplaintMatch[]> {
+  if (USE_INTELLIGENCE_VIZ_STUB) {
+    return intelligenceVizStub.getCrossComplaintMatches(caseId);
+  }
+  const res = await apiClient.get<CrossComplaintMatch[]>(`/api/v1/cases/${caseId}/cross-complaint-matches`);
+  return res.data;
+}
+
 

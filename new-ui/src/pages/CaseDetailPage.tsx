@@ -6,6 +6,9 @@ import { HeroGraph } from '../components/HeroGraph';
 import { RightPanel } from '../components/RightPanel';
 import { FindingsDrawer } from '../components/FindingsDrawer';
 import { CopilotChat } from '../components/CopilotChat';
+import { ExitCard } from '../components/ExitCard';
+import { GasParentClusterView } from '../components/GasParentClusterView';
+import { CrossComplaintView } from '../components/CrossComplaintView';
 import { DataModeBanner } from '../components/DataModeBanner';
 import { FraudTxPicker } from '../components/FraudTxPicker';
 import { Section91NoticeModal } from '../components/Section91NoticeModal';
@@ -13,6 +16,7 @@ import { EvidenceExportModal } from '../components/EvidenceExportModal';
 import { ForensicCase } from '../types';
 import { FORENSIC_CASES } from '../data/cases';
 import { useCaseDetail } from '../hooks/useCase';
+import { getExits, ExitDetail } from '../api/client';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -25,6 +29,8 @@ import {
   Building2,
   CheckCircle2,
   Radio,
+  Flame,
+  GitFork,
 } from 'lucide-react';
 
 interface CaseDetailPageProps {
@@ -53,11 +59,33 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
   const [highlightedEdgeIds, setHighlightedEdgeIds] = useState<string[]>([]);
   const [activeRightTab, setActiveRightTab] = useState<'findings' | 'copilot' | 'assessment'>('findings');
   const [activeTab, setActiveTab] = useState<'findings' | 'graph' | 'copilot' | 'clusters' | 'evidence'>('findings');
+  const [activeClusterSubTab, setActiveClusterSubTab] = useState<'exits' | 'gas_parents' | 'cross_complaint'>('exits');
+  const [exits, setExits] = useState<ExitDetail[]>([]);
+  const [exitsLoading, setExitsLoading] = useState(false);
 
   const { caseData, loading: caseLoading, error: caseError, launchTrace, isTracing: isCaseTracing } = useCaseDetail(caseId);
 
   const activeDataMode = caseData?.data_mode || 'LIVE';
   const traceId = props.currentCase?.id || caseData?.active_trace_id || caseId || 'trace-sample-001';
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function fetchExits() {
+      try {
+        setExitsLoading(true);
+        const data = await getExits(caseId || traceId);
+        if (mounted) setExits(data);
+      } catch (err) {
+        console.error('Failed to load exits:', err);
+      } finally {
+        if (mounted) setExitsLoading(false);
+      }
+    }
+    fetchExits();
+    return () => {
+      mounted = false;
+    };
+  }, [caseId, traceId]);
 
   const handleLaunchTrace = async (fraudTxHash: string) => {
     if (caseId) {
@@ -366,14 +394,100 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
           )}
 
           {activeTab === 'clusters' && (
-            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
-              <Building2 className="h-10 w-10 text-[#B8935F]" />
-              <div className="max-w-md">
-                <h3 className="text-sm font-semibold text-[#EDE8DE]">Exits & Gas Clusters (T10 Placeholder)</h3>
-                <p className="text-xs text-[#7E7972] mt-1">
-                  Off-ramp exchange deposit attribution and gas-parent cluster correlation view. Coming in T10.
-                </p>
+            <div className="p-6 space-y-6">
+              {/* Sub-tab navigation bar */}
+              <div className="flex border-b border-[#2A272D] gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveClusterSubTab('exits')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeClusterSubTab === 'exits'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <Building2 className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>Exchange Exits ({exits.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveClusterSubTab('gas_parents')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeClusterSubTab === 'gas_parents'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <Flame className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>Gas-Parent Clusters</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveClusterSubTab('cross_complaint')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeClusterSubTab === 'cross_complaint'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <GitFork className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>Cross-Complaint Matches</span>
+                </button>
               </div>
+
+              {/* Sub-tab Viewports */}
+              {activeClusterSubTab === 'exits' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#2A272D]">
+                    <div>
+                      <h3 className="text-xs font-semibold text-[#EDE8DE] uppercase tracking-wider font-mono">
+                        VASP Exit Attribution ({exits.length})
+                      </h3>
+                      <p className="text-[10px] text-[#7E7972]">
+                        Centralized exchanges and off-ramp liquidity pools identified as fund termination points
+                      </p>
+                    </div>
+                  </div>
+
+                  {exitsLoading ? (
+                    <div className="p-12 text-center text-[#A8A399] flex flex-col items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-[#B8935F] mb-2" />
+                      <p className="text-xs">Analyzing identified exchange exits...</p>
+                    </div>
+                  ) : exits.length === 0 ? (
+                    <div className="p-8 text-center text-[#7E7972] border border-[#2A272D] rounded-xl bg-[#141215]">
+                      <Building2 className="h-8 w-8 mx-auto text-[#7E7972] mb-2 opacity-50" />
+                      <p className="text-xs font-medium">No exchange exits identified for this trace.</p>
+                      <p className="text-[11px] text-[#5A5650] mt-0.5">
+                        Funds remain within non-custodial intermediary addresses or unmapped endpoints.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {exits.map((exit) => (
+                        <ExitCard
+                          key={exit.exit_id}
+                          exit={exit}
+                          onHighlightWallet={(w) => setHighlightedEdgeIds([w])}
+                          onHighlightEdges={setHighlightedEdgeIds}
+                          onOpenNotice={() => props.setIsNoticeModalOpen?.(true)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeClusterSubTab === 'gas_parents' && (
+                <GasParentClusterView
+                  caseId={caseId || traceId}
+                  onHighlightEdges={setHighlightedEdgeIds}
+                />
+              )}
+
+              {activeClusterSubTab === 'cross_complaint' && (
+                <CrossComplaintView caseId={caseId || traceId} />
+              )}
             </div>
           )}
 
