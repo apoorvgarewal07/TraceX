@@ -1,10 +1,23 @@
 import axios from 'axios';
 import { authStub, User, UserRole, LoginPayload } from './authStub';
+import {
+  casesStub,
+  CaseItem,
+  CreateCasePayload,
+  StartCaseTracePayload,
+  ComplaintSource,
+  CaseStatus,
+  DataMode,
+} from './casesStub';
 
 export type { User, UserRole, LoginPayload };
+export type { CaseItem, CreateCasePayload, StartCaseTracePayload, ComplaintSource, CaseStatus, DataMode };
 
 // TOGGLE: Flip to false when Person 1's backend POST /api/v1/auth/login is confirmed live
 export const USE_AUTH_STUB = true;
+
+// TOGGLE: Flip to false when Person 1's backend /api/v1/cases/* is confirmed live
+export const USE_CASES_STUB = true;
 
 const env = (import.meta as any).env || {};
 export const API_BASE_URL = env.VITE_API_URL || 'http://localhost:8000';
@@ -229,6 +242,25 @@ export const api = {
   async recomputeFindings(traceId: string): Promise<Finding[]> {
     return recomputeFindings(traceId);
   },
+
+  async listCases(mineOnly: boolean = true): Promise<CaseItem[]> {
+    return listCases(mineOnly);
+  },
+
+  async getCase(caseId: string): Promise<CaseItem> {
+    return getCase(caseId);
+  },
+
+  async createCase(payload: CreateCasePayload): Promise<CaseItem> {
+    return createCase(payload);
+  },
+
+  async startCaseTrace(
+    caseId: string,
+    payload: StartCaseTracePayload
+  ): Promise<{ trace_id: string; status: string; data_mode: DataMode }> {
+    return startCaseTrace(caseId, payload);
+  },
 };
 
 export type FindingSeverity = 'high' | 'medium' | 'low';
@@ -252,5 +284,45 @@ export async function getFindings(traceId: string): Promise<Finding[]> {
 
 export async function recomputeFindings(traceId: string): Promise<Finding[]> {
   const res = await apiClient.post<Finding[]>(`/api/v1/intelligence/recompute/${traceId}`);
+  return res.data;
+}
+
+// Cases Contract exports
+export async function listCases(mineOnly: boolean = true): Promise<CaseItem[]> {
+  if (USE_CASES_STUB) {
+    const user = await api.me().catch(() => null);
+    return casesStub.listCases(user, mineOnly);
+  }
+  const res = await apiClient.get<CaseItem[]>('/api/v1/cases', { params: { mine: mineOnly } });
+  return res.data;
+}
+
+export async function getCase(caseId: string): Promise<CaseItem> {
+  if (USE_CASES_STUB) {
+    const user = await api.me().catch(() => null);
+    return casesStub.getCase(caseId, user);
+  }
+  const res = await apiClient.get<CaseItem>(`/api/v1/cases/${caseId}`);
+  return res.data;
+}
+
+export async function createCase(payload: CreateCasePayload): Promise<CaseItem> {
+  if (USE_CASES_STUB) {
+    const user = await api.me().catch(() => null);
+    return casesStub.createCase(payload, user);
+  }
+  const res = await apiClient.post<CaseItem>('/api/v1/cases', payload);
+  return res.data;
+}
+
+export async function startCaseTrace(
+  caseId: string,
+  payload: StartCaseTracePayload
+): Promise<{ trace_id: string; status: string; data_mode: DataMode }> {
+  if (USE_CASES_STUB) {
+    const user = await api.me().catch(() => null);
+    return casesStub.startCaseTrace(caseId, payload, user);
+  }
+  const res = await apiClient.post(`/api/v1/cases/${caseId}/trace`, payload);
   return res.data;
 }

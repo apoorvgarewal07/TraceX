@@ -5,11 +5,26 @@ import { LeftPanel } from '../components/LeftPanel';
 import { HeroGraph } from '../components/HeroGraph';
 import { RightPanel } from '../components/RightPanel';
 import { FindingsDrawer } from '../components/FindingsDrawer';
+import { DataModeBanner } from '../components/DataModeBanner';
+import { FraudTxPicker } from '../components/FraudTxPicker';
 import { Section91NoticeModal } from '../components/Section91NoticeModal';
 import { EvidenceExportModal } from '../components/EvidenceExportModal';
 import { ForensicCase } from '../types';
 import { FORENSIC_CASES } from '../data/cases';
-import { ShieldAlert, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { useCaseDetail } from '../hooks/useCase';
+import {
+  ShieldAlert,
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
+  FolderOpen,
+  Network,
+  Bot,
+  FileCheck,
+  Building2,
+  CheckCircle2,
+  Radio,
+} from 'lucide-react';
 
 interface CaseDetailPageProps {
   currentCase?: ForensicCase | null;
@@ -35,9 +50,19 @@ interface CaseDetailPageProps {
 export function CaseDetailPage(props: CaseDetailPageProps) {
   const { caseId } = useParams<{ caseId: string }>();
   const [highlightedEdgeIds, setHighlightedEdgeIds] = useState<string[]>([]);
-  const [activeRightTab, setActiveRightTab] = useState<'assessment' | 'findings'>('findings');
+  const [activeRightTab, setActiveRightTab] = useState<'findings' | 'assessment'>('findings');
+  const [activeTab, setActiveTab] = useState<'findings' | 'graph' | 'copilot' | 'clusters' | 'evidence'>('findings');
 
-  const traceId = props.currentCase?.id || caseId || 'trace-sample-001';
+  const { caseData, loading: caseLoading, error: caseError, launchTrace, isTracing: isCaseTracing } = useCaseDetail(caseId);
+
+  const activeDataMode = caseData?.data_mode || 'LIVE';
+  const traceId = props.currentCase?.id || caseData?.active_trace_id || caseId || 'trace-sample-001';
+
+  const handleLaunchTrace = async (fraudTxHash: string) => {
+    if (caseId) {
+      await launchTrace({ fraud_tx_hash: fraudTxHash, chain: caseData?.chain || 'ETH' });
+    }
+  };
 
   // If active case is loaded into dashboard props, render the full investigative workspace
   if (props.currentCase) {
@@ -49,6 +74,10 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
           onOpenExport={() => props.setIsExportModalOpen?.(true)}
           onNavigateHome={props.onNavigateHome || (() => {})}
         />
+
+        {/* Prominent Data Mode Banner */}
+        <DataModeBanner dataMode={activeDataMode} />
+
         <main className="flex flex-1 flex-col lg:flex-row overflow-hidden">
           <LeftPanel
             currentCase={props.currentCase}
@@ -141,42 +170,209 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
     );
   }
 
-  // Pure stub display when accessed directly via /cases/:caseId without a preloaded state
+  // Standalone Case Workspace Shell for /cases/:caseId route
   return (
-    <div className="min-h-screen bg-[#131114] text-[#EDE8DE] flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xl p-6 rounded-lg border border-[#2A272D] bg-[#161418] text-center shadow-lg">
-        <h1 className="text-xl font-bold text-[#EDE8DE] mb-2">Case Workspace</h1>
-        <p className="text-sm text-[#A8A399] mb-4">
-          Case Workspace for dossier ID: <code className="text-[#B8935F]">{caseId || 'unspecified'}</code>.
-        </p>
-
-        {props.onSelectCase && (
-          <button
-            type="button"
-            onClick={() => props.onSelectCase?.(FORENSIC_CASES[0])}
-            className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded bg-[#B8935F] text-[#131114] text-xs font-semibold hover:bg-[#CFAC78] transition-colors"
+    <div className="min-h-screen bg-[#131114] text-[#EDE8DE] flex flex-col">
+      {/* Top Header */}
+      <header className="border-b border-[#2A272D] bg-[#161418] px-6 py-3 flex items-center justify-between z-20">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="p-1.5 rounded text-[#A8A399] hover:text-[#EDE8DE] hover:bg-[#242227] transition-colors"
+            title="Return to Case Directory"
           >
-            Load Sample Forensic Dossier
-          </button>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-serif font-semibold text-sm tracking-wide text-[#EDE8DE]">
+                CASE DOSSIER: {caseData?.complaint_ref || caseId}
+              </span>
+              <span className="text-[10px] font-mono text-[#B8935F] bg-[#1C1A1E] px-1.5 py-0.5 rounded border border-[#2E2B32]">
+                {caseData?.complaint_source || 'NCRP'}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#7E7972] font-mono">ID: {caseId || 'unspecified'}</p>
+          </div>
+        </div>
+
+        {caseData && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-mono text-[11px] px-2 py-0.5 rounded border bg-[#242227] border-[#2E2B32] text-[#A8A399]">
+              {caseData.chain} Ledger
+            </span>
+            <span className="font-mono text-[11px] px-2 py-0.5 rounded border bg-[#3B6B54]/20 border-[#3B6B54]/40 text-[#34D399]">
+              {caseData.status}
+            </span>
+          </div>
+        )}
+      </header>
+
+      {/* Prominent Data Mode Banner */}
+      <DataModeBanner dataMode={activeDataMode} />
+
+      {/* Main Workspace Body */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+        {caseLoading && (
+          <div className="p-12 text-center text-[#A8A399] flex flex-col items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-[#B8935F] mb-2" />
+            <p className="text-xs">Loading case dossier metadata...</p>
+          </div>
         )}
 
-        {/* Embedded Findings Preview for Direct Navigation */}
-        <div className="mt-4 text-left border border-[#2A272D] rounded-lg overflow-hidden h-96">
-          <FindingsDrawer
-            traceId={caseId || 'trace-sample-001'}
-            highlightedEdgeIds={highlightedEdgeIds}
-            onHighlightEdges={setHighlightedEdgeIds}
-            className="h-full border-l-0"
-          />
+        {caseError && (
+          <div className="p-4 rounded-lg bg-[#8C3B3B]/15 border border-[#8C3B3B]/40 text-xs text-[#E05A47]">
+            <p className="font-medium">Case Access Notice</p>
+            <p className="text-[11px] text-[#A8A399] mt-0.5">{caseError}</p>
+          </div>
+        )}
+
+        {/* Fraud Transaction Picker Shell */}
+        <FraudTxPicker
+          caseId={caseId || 'unspecified'}
+          initialHash={caseData?.fraud_tx_hash || ''}
+          chain={caseData?.chain || 'ETH'}
+          isTracing={isCaseTracing}
+          onSubmitTrace={handleLaunchTrace}
+        />
+
+        {/* Workspace Feature Tabs Header */}
+        <div className="border-b border-[#2A272D] flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('findings')}
+            className={`py-2.5 px-4 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'findings'
+                ? 'border-[#B8935F] text-[#EDE8DE] bg-[#18161A]'
+                : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+            }`}
+          >
+            <ShieldAlert className="h-4 w-4 text-[#B8935F]" />
+            <span>Deterministic Findings (T7)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('graph')}
+            className={`py-2.5 px-4 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'graph'
+                ? 'border-[#B8935F] text-[#EDE8DE] bg-[#18161A]'
+                : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+            }`}
+          >
+            <Network className="h-4 w-4 text-[#A8A399]" />
+            <span>Attribution Graph</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('copilot')}
+            className={`py-2.5 px-4 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'copilot'
+                ? 'border-[#B8935F] text-[#EDE8DE] bg-[#18161A]'
+                : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+            }`}
+          >
+            <Bot className="h-4 w-4 text-[#A8A399]" />
+            <span>Grounded Copilot (T9)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('clusters')}
+            className={`py-2.5 px-4 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'clusters'
+                ? 'border-[#B8935F] text-[#EDE8DE] bg-[#18161A]'
+                : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+            }`}
+          >
+            <Building2 className="h-4 w-4 text-[#A8A399]" />
+            <span>Exits & Clusters (T10)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('evidence')}
+            className={`py-2.5 px-4 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'evidence'
+                ? 'border-[#B8935F] text-[#EDE8DE] bg-[#18161A]'
+                : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+            }`}
+          >
+            <FileCheck className="h-4 w-4 text-[#A8A399]" />
+            <span>Legal Export & Sec 91 (T11)</span>
+          </button>
         </div>
 
-        <div className="mt-4">
-          <Link to="/" className="text-xs text-[#B8935F] hover:underline inline-flex items-center gap-1">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Case Directory (/)
-          </Link>
+        {/* Tab Viewport */}
+        <div className="bg-[#161418] border border-[#2A272D] rounded-xl overflow-hidden min-h-[420px]">
+          {activeTab === 'findings' && (
+            <FindingsDrawer
+              traceId={traceId}
+              highlightedEdgeIds={highlightedEdgeIds}
+              onHighlightEdges={setHighlightedEdgeIds}
+              className="h-[460px] border-l-0"
+            />
+          )}
+
+          {activeTab === 'graph' && (
+            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-4">
+              <Network className="h-10 w-10 text-[#B8935F]" />
+              <div className="max-w-md">
+                <h3 className="text-sm font-semibold text-[#EDE8DE]">Interactive Attribution Graph</h3>
+                <p className="text-xs text-[#7E7972] mt-1">
+                  Launch a trace using the fraud-transaction picker above, or open the sample Euler benchmark to explore live graph traversal.
+                </p>
+              </div>
+              {props.onSelectCase && (
+                <button
+                  type="button"
+                  onClick={() => props.onSelectCase?.(FORENSIC_CASES[0])}
+                  className="px-4 py-2 rounded bg-[#B8935F] text-[#131114] text-xs font-semibold hover:bg-[#CFAC78]"
+                >
+                  Load Benchmark Graph View
+                </button>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'copilot' && (
+            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
+              <Bot className="h-10 w-10 text-[#B8935F]" />
+              <div className="max-w-md">
+                <h3 className="text-sm font-semibold text-[#EDE8DE]">Grounded AI Copilot (T9 Placeholder)</h3>
+                <p className="text-xs text-[#7E7972] mt-1">
+                  Deterministic citation-validated chat assistant wired to read-only DB forensic tools. Coming in T8/T9.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'clusters' && (
+            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
+              <Building2 className="h-10 w-10 text-[#B8935F]" />
+              <div className="max-w-md">
+                <h3 className="text-sm font-semibold text-[#EDE8DE]">Exits & Gas Clusters (T10 Placeholder)</h3>
+                <p className="text-xs text-[#7E7972] mt-1">
+                  Off-ramp exchange deposit attribution and gas-parent cluster correlation view. Coming in T10.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'evidence' && (
+            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
+              <FileCheck className="h-10 w-10 text-[#B8935F]" />
+              <div className="max-w-md">
+                <h3 className="text-sm font-semibold text-[#EDE8DE]">Court Evidence Bundle & Notice Draft (T11 Placeholder)</h3>
+                <p className="text-xs text-[#7E7972] mt-1">
+                  Section 91 CrPC freeze directive generation and cryptographic SHA-256 evidence bundle export. Coming in T11.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
