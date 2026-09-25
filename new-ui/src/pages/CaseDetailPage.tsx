@@ -5,6 +5,7 @@ import { LeftPanel } from '../components/LeftPanel';
 import { HeroGraph } from '../components/HeroGraph';
 import { RightPanel } from '../components/RightPanel';
 import { FindingsDrawer } from '../components/FindingsDrawer';
+import { CopilotChat } from '../components/CopilotChat';
 import { DataModeBanner } from '../components/DataModeBanner';
 import { FraudTxPicker } from '../components/FraudTxPicker';
 import { Section91NoticeModal } from '../components/Section91NoticeModal';
@@ -50,7 +51,7 @@ interface CaseDetailPageProps {
 export function CaseDetailPage(props: CaseDetailPageProps) {
   const { caseId } = useParams<{ caseId: string }>();
   const [highlightedEdgeIds, setHighlightedEdgeIds] = useState<string[]>([]);
-  const [activeRightTab, setActiveRightTab] = useState<'findings' | 'assessment'>('findings');
+  const [activeRightTab, setActiveRightTab] = useState<'findings' | 'copilot' | 'assessment'>('findings');
   const [activeTab, setActiveTab] = useState<'findings' | 'graph' | 'copilot' | 'clusters' | 'evidence'>('findings');
 
   const { caseData, loading: caseLoading, error: caseError, launchTrace, isTracing: isCaseTracing } = useCaseDetail(caseId);
@@ -109,26 +110,38 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
               <button
                 type="button"
                 onClick={() => setActiveRightTab('findings')}
-                className={`flex-1 py-2.5 px-3 text-center font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 px-2 text-center font-medium border-b-2 transition-colors flex items-center justify-center gap-1 ${
                   activeRightTab === 'findings'
                     ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
                     : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
                 }`}
               >
                 <ShieldAlert className="h-3.5 w-3.5 text-[#B8935F]" />
-                <span>Findings (R1–R8)</span>
+                <span>Findings</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveRightTab('copilot')}
+                className={`flex-1 py-2.5 px-2 text-center font-medium border-b-2 transition-colors flex items-center justify-center gap-1 ${
+                  activeRightTab === 'copilot'
+                    ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                    : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                }`}
+              >
+                <Bot className="h-3.5 w-3.5 text-[#B8935F]" />
+                <span>Copilot</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveRightTab('assessment')}
-                className={`flex-1 py-2.5 px-3 text-center font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 px-2 text-center font-medium border-b-2 transition-colors flex items-center justify-center gap-1 ${
                   activeRightTab === 'assessment'
                     ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
                     : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
                 }`}
               >
                 <AlertTriangle className="h-3.5 w-3.5 text-[#B8935F]" />
-                <span>Threat Assessment</span>
+                <span>Threat</span>
               </button>
             </div>
 
@@ -140,6 +153,13 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
                   highlightedEdgeIds={highlightedEdgeIds}
                   onHighlightEdges={setHighlightedEdgeIds}
                   className="h-full border-l-0"
+                />
+              ) : activeRightTab === 'copilot' ? (
+                <CopilotChat
+                  caseId={caseId || props.currentCase.id}
+                  traceId={traceId}
+                  onHighlightEdges={setHighlightedEdgeIds}
+                  className="h-full border-0 rounded-none"
                 />
               ) : (
                 <RightPanel
@@ -337,15 +357,12 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
           )}
 
           {activeTab === 'copilot' && (
-            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
-              <Bot className="h-10 w-10 text-[#B8935F]" />
-              <div className="max-w-md">
-                <h3 className="text-sm font-semibold text-[#EDE8DE]">Grounded AI Copilot (T9 Placeholder)</h3>
-                <p className="text-xs text-[#7E7972] mt-1">
-                  Deterministic citation-validated chat assistant wired to read-only DB forensic tools. Coming in T8/T9.
-                </p>
-              </div>
-            </div>
+            <CopilotChat
+              caseId={caseId || traceId}
+              traceId={traceId}
+              onHighlightEdges={setHighlightedEdgeIds}
+              className="h-[520px] border-0 rounded-none"
+            />
           )}
 
           {activeTab === 'clusters' && (
