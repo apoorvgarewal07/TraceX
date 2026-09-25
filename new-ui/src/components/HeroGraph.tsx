@@ -38,6 +38,7 @@ interface HeroGraphProps {
   isExecuting?: boolean;
   onPinNode?: (address: string) => void;
   onSelectDefaultCase?: () => void;
+  highlightedEdgeIds?: string[];
 }
 
 export function HeroGraph({
@@ -53,6 +54,7 @@ export function HeroGraph({
   isExecuting,
   onPinNode,
   onSelectDefaultCase,
+  highlightedEdgeIds = [],
 }: HeroGraphProps) {
   const [viewMode, setViewMode] = useState<'graph' | 'ledger'>('graph');
   const [selectedNode, setSelectedNode] = useState<ForensicNode | null>(null);
@@ -644,10 +646,28 @@ export function HeroGraph({
                 >
                   <path d="M 0 1 L 9 5 L 0 9 z" fill="#B8935F" />
                 </marker>
+                <marker
+                  id="arrow-highlighted"
+                  viewBox="0 0 10 10"
+                  refX="18"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="#D4AF37" />
+                </marker>
 
                 {/* Soft brass glow filter for the signature trace pulse */}
                 <filter id="softBrassGlow" x="-50%" y="-50%" width="200%" height="200%">
                   <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <filter id="highlightGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -665,6 +685,7 @@ export function HeroGraph({
                   const pathD = calculatePath(sourceNode, targetNode);
                   const isResolved = activeHop >= edge.hopIndex;
                   const isSelected = selectedEdge?.id === edge.id;
+                  const isHighlighted = highlightedEdgeIds?.includes(edge.id);
 
                   return (
                     <g
@@ -688,15 +709,24 @@ export function HeroGraph({
                         d={pathD}
                         fill="none"
                         stroke={
-                          isSelected
+                          isHighlighted
+                            ? '#D4AF37'
+                            : isSelected
                             ? '#EDE8DE'
                             : isResolved
                             ? 'rgba(184, 147, 95, 0.65)'
                             : 'rgba(58, 54, 62, 0.6)'
                         }
-                        strokeWidth={isSelected ? 3 : isResolved ? 2.5 : 1.5}
-                        strokeDasharray={isResolved ? 'none' : '4 4'}
-                        markerEnd={isResolved ? 'url(#arrow-resolved)' : 'url(#arrow-unresolved)'}
+                        strokeWidth={isHighlighted ? 3.5 : isSelected ? 3 : isResolved ? 2.5 : 1.5}
+                        strokeDasharray={isHighlighted ? 'none' : isResolved ? 'none' : '4 4'}
+                        markerEnd={
+                          isHighlighted
+                            ? 'url(#arrow-highlighted)'
+                            : isResolved
+                            ? 'url(#arrow-resolved)'
+                            : 'url(#arrow-unresolved)'
+                        }
+                        filter={isHighlighted ? 'url(#highlightGlow)' : undefined}
                         className="transition-colors duration-300"
                       />
 
@@ -712,17 +742,25 @@ export function HeroGraph({
                           width={92}
                           height={20}
                           rx={3}
-                          fill="#18161A"
-                          stroke={isSelected ? '#EDE8DE' : isResolved ? 'rgba(184, 147, 95, 0.3)' : '#2A272D'}
-                          strokeWidth={1}
+                          fill={isHighlighted ? '#282114' : '#18161A'}
+                          stroke={
+                            isHighlighted
+                              ? '#D4AF37'
+                              : isSelected
+                              ? '#EDE8DE'
+                              : isResolved
+                              ? 'rgba(184, 147, 95, 0.3)'
+                              : '#2A272D'
+                          }
+                          strokeWidth={isHighlighted ? 1.5 : 1}
                         />
                         <text
                           x={0}
                           y={3}
                           textAnchor="middle"
-                          fill={isResolved ? '#EDE8DE' : '#A8A399'}
+                          fill={isHighlighted ? '#F3E5AB' : isResolved ? '#EDE8DE' : '#A8A399'}
                           fontSize={9}
-                          fontWeight={500}
+                          fontWeight={isHighlighted ? 700 : 500}
                           style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}
                         >
                           {edge.amountCrypto}
@@ -1044,12 +1082,17 @@ export function HeroGraph({
                     const src = currentCase.nodes.find((n) => n.id === edge.source);
                     const tgt = currentCase.nodes.find((n) => n.id === edge.target);
                     const isHopActive = activeHop >= edge.hopIndex;
+                    const isHighlighted = highlightedEdgeIds?.includes(edge.id);
 
                     return (
                       <tr
                         key={edge.id}
                         className={`hover:bg-[#201D22] transition-colors cursor-pointer ${
-                          isHopActive ? '' : 'opacity-60'
+                          isHighlighted
+                            ? 'bg-[#B8935F]/20 border-l-2 border-[#D4AF37]'
+                            : isHopActive
+                            ? ''
+                            : 'opacity-60'
                         }`}
                         onClick={() => {
                           setSelectedEdge(edge);

@@ -221,4 +221,36 @@ export const api = {
     const res = await apiClient.get<User>('/api/v1/auth/me');
     return res.data;
   },
+
+  async getFindings(traceId: string): Promise<Finding[]> {
+    return getFindings(traceId);
+  },
+
+  async recomputeFindings(traceId: string): Promise<Finding[]> {
+    return recomputeFindings(traceId);
+  },
 };
+
+export type FindingSeverity = 'high' | 'medium' | 'low';
+
+export interface Finding {
+  finding_id: string;
+  rule: string;
+  trace_id: string;
+  severity: FindingSeverity;
+  evidence_edge_ids: string[];
+  evidence_ids: string[];
+  explanation: string;
+  computed_at: string;
+  data_mode: 'LIVE' | 'CACHED' | 'FIXTURE' | 'UNAVAILABLE' | string;
+}
+
+export async function getFindings(traceId: string): Promise<Finding[]> {
+  const res = await apiClient.get<Finding[]>(`/api/v1/intelligence/findings/${traceId}`);
+  return res.data;
+}
+
+export async function recomputeFindings(traceId: string): Promise<Finding[]> {
+  const res = await apiClient.post<Finding[]>(`/api/v1/intelligence/recompute/${traceId}`);
+  return res.data;
+}
