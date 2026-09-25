@@ -16,10 +16,29 @@ import {
   GasParentCluster,
   CrossComplaintMatch,
 } from './intelligenceVizStub';
+import {
+  evidenceStub,
+  EvidenceBundle,
+  EvidenceManifest,
+  EvidenceFileItem,
+  EvidenceMismatch,
+  EvidenceVerificationResult,
+  NoticeDraftPayload,
+  NoticeDraftResult,
+} from './evidenceStub';
 
 export type { User, UserRole, LoginPayload };
 export type { CaseItem, CreateCasePayload, StartCaseTracePayload, ComplaintSource, CaseStatus, DataMode };
 export type { VaspTier, ExitDetail, GasParentCluster, CrossComplaintMatch };
+export type {
+  EvidenceBundle,
+  EvidenceManifest,
+  EvidenceFileItem,
+  EvidenceMismatch,
+  EvidenceVerificationResult,
+  NoticeDraftPayload,
+  NoticeDraftResult,
+};
 
 // TOGGLE: Flip to false when Person 1's backend POST /api/v1/auth/login is confirmed live
 export const USE_AUTH_STUB = true;
@@ -29,6 +48,9 @@ export const USE_CASES_STUB = true;
 
 // TOGGLE: Flip to false when Person 1's backend /gas-parent-clusters, /cross-complaint-matches, and /exits are confirmed live
 export const USE_INTELLIGENCE_VIZ_STUB = true;
+
+// TOGGLE: Flip to false when Person 1's backend /evidence/export and /evidence/verify are confirmed live
+export const USE_EVIDENCE_STUB = true;
 
 const env = (import.meta as any).env || {};
 export const API_BASE_URL = env.VITE_API_URL || 'http://localhost:8000';
@@ -295,6 +317,18 @@ export const api = {
   async getCrossComplaintMatches(caseId: string): Promise<CrossComplaintMatch[]> {
     return getCrossComplaintMatches(caseId);
   },
+
+  async exportEvidence(caseId: string): Promise<{ bundle_id: string; download_url: string; bundle: EvidenceBundle }> {
+    return exportEvidence(caseId);
+  },
+
+  async verifyEvidence(bundle: EvidenceBundle): Promise<EvidenceVerificationResult> {
+    return verifyEvidence(bundle);
+  },
+
+  async generateNoticeDraft(payload: NoticeDraftPayload): Promise<NoticeDraftResult> {
+    return generateNoticeDraft(payload);
+  },
 };
 
 export type FindingSeverity = 'high' | 'medium' | 'low';
@@ -442,5 +476,41 @@ export async function getCrossComplaintMatches(caseId: string): Promise<CrossCom
   const res = await apiClient.get<CrossComplaintMatch[]>(`/api/v1/cases/${caseId}/cross-complaint-matches`);
   return res.data;
 }
+
+// Evidence & Notice Contract exports
+export async function exportEvidence(
+  caseId: string
+): Promise<{ bundle_id: string; download_url: string; bundle: EvidenceBundle }> {
+  if (USE_EVIDENCE_STUB) {
+    return evidenceStub.exportEvidence(caseId);
+  }
+  const res = await apiClient.post<{ bundle_id: string; download_url: string; bundle: EvidenceBundle }>(
+    `/api/v1/cases/${caseId}/evidence/export`
+  );
+  return res.data;
+}
+
+export async function verifyEvidence(bundle: EvidenceBundle): Promise<EvidenceVerificationResult> {
+  if (USE_EVIDENCE_STUB) {
+    return evidenceStub.verifyEvidence(bundle);
+  }
+  const res = await apiClient.post<EvidenceVerificationResult>(
+    '/api/v1/cases/evidence/verify',
+    bundle
+  );
+  return res.data;
+}
+
+export async function generateNoticeDraft(payload: NoticeDraftPayload): Promise<NoticeDraftResult> {
+  if (USE_EVIDENCE_STUB) {
+    return evidenceStub.generateNoticeDraft(payload);
+  }
+  const res = await apiClient.post<NoticeDraftResult>(
+    `/api/v1/cases/${payload.case_id}/notice-draft`,
+    payload
+  );
+  return res.data;
+}
+
 
 

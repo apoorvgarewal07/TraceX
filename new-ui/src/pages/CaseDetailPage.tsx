@@ -9,6 +9,9 @@ import { CopilotChat } from '../components/CopilotChat';
 import { ExitCard } from '../components/ExitCard';
 import { GasParentClusterView } from '../components/GasParentClusterView';
 import { CrossComplaintView } from '../components/CrossComplaintView';
+import { EvidenceExportPanel } from '../components/EvidenceExportPanel';
+import { EvidenceVerifyPanel } from '../components/EvidenceVerifyPanel';
+import { NoticeDraftPreview } from '../components/NoticeDraftPreview';
 import { DataModeBanner } from '../components/DataModeBanner';
 import { FraudTxPicker } from '../components/FraudTxPicker';
 import { Section91NoticeModal } from '../components/Section91NoticeModal';
@@ -16,7 +19,7 @@ import { EvidenceExportModal } from '../components/EvidenceExportModal';
 import { ForensicCase } from '../types';
 import { FORENSIC_CASES } from '../data/cases';
 import { useCaseDetail } from '../hooks/useCase';
-import { getExits, ExitDetail } from '../api/client';
+import { getExits, ExitDetail, EvidenceBundle } from '../api/client';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -31,6 +34,7 @@ import {
   Radio,
   Flame,
   GitFork,
+  FileText,
 } from 'lucide-react';
 
 interface CaseDetailPageProps {
@@ -60,6 +64,8 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
   const [activeRightTab, setActiveRightTab] = useState<'findings' | 'copilot' | 'assessment'>('findings');
   const [activeTab, setActiveTab] = useState<'findings' | 'graph' | 'copilot' | 'clusters' | 'evidence'>('findings');
   const [activeClusterSubTab, setActiveClusterSubTab] = useState<'exits' | 'gas_parents' | 'cross_complaint'>('exits');
+  const [activeEvidenceSubTab, setActiveEvidenceSubTab] = useState<'export' | 'verify' | 'notice'>('export');
+  const [activeBundle, setActiveBundle] = useState<EvidenceBundle | null>(null);
   const [exits, setExits] = useState<ExitDetail[]>([]);
   const [exitsLoading, setExitsLoading] = useState(false);
 
@@ -492,14 +498,67 @@ export function CaseDetailPage(props: CaseDetailPageProps) {
           )}
 
           {activeTab === 'evidence' && (
-            <div className="p-8 text-center text-[#A8A399] flex flex-col items-center justify-center space-y-3">
-              <FileCheck className="h-10 w-10 text-[#B8935F]" />
-              <div className="max-w-md">
-                <h3 className="text-sm font-semibold text-[#EDE8DE]">Court Evidence Bundle & Notice Draft (T11 Placeholder)</h3>
-                <p className="text-xs text-[#7E7972] mt-1">
-                  Section 91 CrPC freeze directive generation and cryptographic SHA-256 evidence bundle export. Coming in T11.
-                </p>
+            <div className="p-6 space-y-6">
+              {/* Sub-tab navigation bar */}
+              <div className="flex border-b border-[#2A272D] gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveEvidenceSubTab('export')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeEvidenceSubTab === 'export'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <FileCheck className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>1. Export Evidence Bundle</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveEvidenceSubTab('verify')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeEvidenceSubTab === 'verify'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>2. Tamper-Evident Verification</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveEvidenceSubTab('notice')}
+                  className={`py-2 px-3 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeEvidenceSubTab === 'notice'
+                      ? 'border-[#B8935F] text-[#EDE8DE] bg-[#1C1A1E]'
+                      : 'border-transparent text-[#7E7972] hover:text-[#EDE8DE]'
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5 text-[#B8935F]" />
+                  <span>3. Neutral Notice Draft</span>
+                </button>
               </div>
+
+              {/* Sub-tab viewports */}
+              {activeEvidenceSubTab === 'export' && (
+                <EvidenceExportPanel
+                  caseId={caseId || traceId}
+                  onBundleGenerated={(b) => {
+                    setActiveBundle(b);
+                  }}
+                />
+              )}
+
+              {activeEvidenceSubTab === 'verify' && (
+                <EvidenceVerifyPanel initialBundle={activeBundle} />
+              )}
+
+              {activeEvidenceSubTab === 'notice' && (
+                <NoticeDraftPreview
+                  caseId={caseId || traceId}
+                  defaultExit={exits.length > 0 ? exits[0] : null}
+                />
+              )}
             </div>
           )}
         </div>
